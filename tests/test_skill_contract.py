@@ -11,11 +11,11 @@ TEST_REPORT_PATH = SKILL_ROOT / "tests" / "test_report.py"
 
 
 EXPECTED_DESCRIPTION = (
-    "Use when the user says 使用weekly-work-skill, 使用weekly-week-skill, "
-    "使用weekly-week-skill给prompt, or 使用weekly-work-skill给prompt, invokes "
-    "$weekly-work-skill, asks to record weekly work, says 汇总weekly-work-skill, "
-    "requests a current-week Word report, or asks to correct or delete stored "
-    "weekly-work records."
+    "Use when the user says 使用weekly-work-skill,提取5月26日工作内容; "
+    "使用weekly-work-skill,汇总5月26日那一周的工作内容; "
+    "使用weekly-work-skill,给prompt; legacy aliases 使用weekly-week-skill给prompt, "
+    "使用weekly-work-skill给prompt, 使用weekly-week-skill,给prompt; invokes "
+    "$weekly-work-skill; or asks to correct/delete weekly-work records."
 )
 
 EXPECTED_PROMPT_HEADINGS = [
@@ -72,7 +72,7 @@ EXPECTED_PROMPT_RULES = [
 ]
 
 EXPECTED_DEFAULT_PROMPT = (
-    "Use $weekly-work-skill to record, summarize, correct, or delete weekly work."
+    "使用weekly-work-skill,提取今天工作内容 / 使用weekly-work-skill,汇总今天那一周的工作内容 / 使用weekly-work-skill,给prompt"
 )
 
 EXPECTED_OPENAI_SHORT_DESCRIPTION = (
@@ -146,7 +146,10 @@ class SkillContractTests(unittest.TestCase):
             self.assertIn(token, body)
 
         for token in (
-            "使用weekly-work-skill",
+            "使用weekly-work-skill,提取5月26日工作内容",
+            "使用weekly-work-skill,提取5月26日至5月31日工作内容",
+            "使用weekly-work-skill,汇总5月26日那一周的工作内容",
+            "使用weekly-work-skill,给prompt",
             "$weekly-work-skill",
             "汇总weekly-work-skill",
             "使用 $weekly-work-skill 汇总本周周报",
@@ -168,7 +171,7 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn("do not generate Word during collection", body)
         self.assertIn("reply exactly 收到", body)
         self.assertIn("no headings, path, summary, or reminder", body)
-        self.assertIn("use local invocation date for current Monday-Sunday", body)
+        self.assertIn("If the prompt includes a date, use that date as --week-of; otherwise use local invocation date", body)
         self.assertIn("codex_app workspace dependency loader", body)
         self.assertIn("bundled Python", body)
         self.assertIn("never install/use system Python for report.py", body)
@@ -277,15 +280,16 @@ class SkillContractTests(unittest.TestCase):
         )
 
         aliases = (
-            "使用weekly-week-skill",
+            "使用weekly-work-skill,给prompt",
             "使用weekly-week-skill给prompt",
             "使用weekly-work-skill给prompt",
+            "使用weekly-week-skill,给prompt",
         )
         for alias in aliases:
             self.assertIn(alias, description)
 
         self.assertIn(
-            "   - 触发：`使用weekly-week-skill`、`使用weekly-week-skill给prompt` 或 `使用weekly-work-skill给prompt`。",
+            "   - 触发：`使用weekly-work-skill,给prompt`；legacy aliases: `使用weekly-week-skill给prompt`、`使用weekly-work-skill给prompt`、`使用weekly-week-skill,给prompt`。",
             body.splitlines(),
         )
 
@@ -383,7 +387,7 @@ class SkillContractTests(unittest.TestCase):
     def test_agents_openai_default_prompt_mentions_skill(self):
         text = _read_text(OPENAI_PATH)
         self.assertIn("default_prompt", text)
-        self.assertIn("$weekly-work-skill", text)
+        self.assertIn("weekly-work-skill", text)
         self.assertEqual(text.count("default_prompt"), 1)
         self.assertEqual(
             EXPECTED_DEFAULT_PROMPT,

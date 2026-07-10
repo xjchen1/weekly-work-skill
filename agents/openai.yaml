@@ -1,4 +1,4 @@
 interface:
   display_name: "Weekly Work"
   short_description: "跨项目记录、汇总、更正和删除每周工作，并生成结构化 Word 周报文档"
-  default_prompt: "Use $weekly-work-skill to record, summarize, correct, or delete weekly work."
+  default_prompt: "使用weekly-work-skill,提取今天工作内容 / 使用weekly-work-skill,汇总今天那一周的工作内容 / 使用weekly-work-skill,给prompt"

@@ -1,6 +1,6 @@
 ---
 name: weekly-work-skill
-description: Use when the user says 使用weekly-work-skill, 使用weekly-week-skill, 使用weekly-week-skill给prompt, or 使用weekly-work-skill给prompt, invokes $weekly-work-skill, asks to record weekly work, says 汇总weekly-work-skill, requests a current-week Word report, or asks to correct or delete stored weekly-work records.
+description: Use when the user says 使用weekly-work-skill,提取5月26日工作内容; 使用weekly-work-skill,汇总5月26日那一周的工作内容; 使用weekly-work-skill,给prompt; legacy aliases 使用weekly-week-skill给prompt, 使用weekly-work-skill给prompt, 使用weekly-week-skill,给prompt; invokes $weekly-work-skill; or asks to correct/delete weekly-work records.
 ---
 
 # Weekly Work Skill
@@ -14,12 +14,12 @@ description: Use when the user says 使用weekly-work-skill, 使用weekly-week-s
 五种模式互斥，只选一种：
 
 1. `collect`
-- 触发：`使用weekly-work-skill`、显式 `$weekly-work-skill`，或用户明确要求按日期记录 weekly-report material。
+- 触发：`使用weekly-work-skill,提取5月26日工作内容`、`使用weekly-work-skill,提取5月26日至5月31日工作内容`、显式 `$weekly-work-skill` 加日期，或用户明确要求按日期记录 weekly-report material。
 - 目标：用户只提供日期；从当前项目的 Codex 历史对话中提取对应日期的工作事实并存储。
 
 2. `summarize`
-   - 触发：`汇总weekly-work-skill` 或 `使用 $weekly-work-skill 汇总本周周报`。
-   - 目标：读取本地已存记录，生成当前周一到周日的 Word 周报。
+   - 触发：`使用weekly-work-skill,汇总5月26日那一周的工作内容`、`汇总weekly-work-skill` 或 `使用 $weekly-work-skill 汇总本周周报`。
+   - 目标：读取本地已存记录，生成指定日期所在周或当前周一到周日的 Word 周报。
 
 3. `correct`
    - 触发：用户要求更正已存 weekly-work 记录。
@@ -28,10 +28,16 @@ description: Use when the user says 使用weekly-work-skill, 使用weekly-week-s
    - 触发：用户要求删除已存 weekly-work 记录。
 
 5. `prompt`
-   - 触发：`使用weekly-week-skill`、`使用weekly-week-skill给prompt` 或 `使用weekly-work-skill给prompt`。
+   - 触发：`使用weekly-work-skill,给prompt`；legacy aliases: `使用weekly-week-skill给prompt`、`使用weekly-work-skill给prompt`、`使用weekly-week-skill,给prompt`。
    - These triggers select prompt, never collect; this mode is prompt-only and mutually exclusive with every other mode.
 
 If the intent is unclear, ask which mode they want before acting.
+
+Recommended user prompts:
+
+- `使用weekly-work-skill,提取5月26日工作内容`
+- `使用weekly-work-skill,汇总5月26日那一周的工作内容`
+- `使用weekly-work-skill,给prompt`
 
 ## Shared Paths
 
@@ -150,7 +156,9 @@ On success, keep the response to 收到 only: no headings, path, summary, or rem
 
 Summary rules:
 
-- use local invocation date for current Monday-Sunday
+- If the prompt includes a date, use that date as --week-of; otherwise use local invocation date
+- `汇总5月26日那一周的工作内容` means generate the Monday-Sunday week containing May 26
+- dates without a year use the current local year
 - use the codex_app workspace dependency loader for this invocation
 - call tool codex_app__load_workspace_dependencies with empty object; read returned Python executable; set BUNDLED_PYTHON to that exact path for this invocation
 - BUNDLED_PYTHON="<Python executable returned by codex_app__load_workspace_dependencies>" for this invocation only; replace the placeholder with the tool result, do not run it literally
@@ -173,9 +181,10 @@ Example workflow:
 ROOT=$HOME/Documents/周报
 SKILL_DIR=${CODEX_HOME:-$HOME/.codex}/skills/weekly-work-skill
 REPORT_TEMPLATE="$SKILL_DIR/assets/weekly-report-template.docx"
+WEEK_OF_DATE="2026-05-26"
 # call tool codex_app__load_workspace_dependencies with empty object; read returned Python executable; set BUNDLED_PYTHON to that exact path for this invocation
 BUNDLED_PYTHON="<Python executable returned by codex_app__load_workspace_dependencies>"
-"$BUNDLED_PYTHON" "$SKILL_DIR/scripts/report.py" generate --root "$ROOT" --week-of "$(date +%F)" --template "$REPORT_TEMPLATE"
+"$BUNDLED_PYTHON" "$SKILL_DIR/scripts/report.py" generate --root "$ROOT" --week-of "$WEEK_OF_DATE" --template "$REPORT_TEMPLATE"
 ```
 
 return absolute Word path on success
