@@ -1,3 +1,4 @@
+import importlib.util
 import hashlib
 import json
 import os
@@ -25,6 +26,26 @@ CATEGORIES = (
     "research_outputs",
     "unresolved",
 )
+
+
+class FakeMsvcrt:
+    LK_LOCK = 1
+    LK_UNLCK = 2
+
+    def __init__(self):
+        self.calls = []
+
+    def locking(self, fileno, mode, nbytes):
+        self.calls.append((mode, nbytes))
+
+
+def import_script_without_fcntl(name, relative_path, fake_msvcrt):
+    script_path = SKILL_ROOT / relative_path
+    spec = importlib.util.spec_from_file_location(name, script_path)
+    module = importlib.util.module_from_spec(spec)
+    with mock.patch.dict(sys.modules, {"fcntl": None, "msvcrt": fake_msvcrt}):
+        spec.loader.exec_module(module)
+    return module
 
 
 def payload(work_date="2026-06-30", project="alpha", **overrides):
@@ -143,6 +164,23 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(document["week_end"], "2026-07-05")
         self.assertEqual(
             {entry["project"] for entry in document["entries"]}, {"alpha", "beta"}
+        )
+
+    def test_storage_lock_falls_back_to_windows_msvcrt_when_fcntl_is_unavailable(self):
+        fake_msvcrt = FakeMsvcrt()
+        module = import_script_without_fcntl(
+            "weekly_store_no_fcntl",
+            Path("scripts") / "weekly_store.py",
+            fake_msvcrt,
+        )
+
+        with tempfile.TemporaryDirectory() as temporary:
+            with module._storage_lock(Path(temporary)):
+                pass
+
+        self.assertEqual(
+            fake_msvcrt.calls,
+            [(fake_msvcrt.LK_LOCK, 1), (fake_msvcrt.LK_UNLCK, 1)],
         )
 
     def test_concurrent_adds_do_not_lose_entries(self):

@@ -1,3 +1,4 @@
+import importlib.util
 import io
 import json
 import os
@@ -14,6 +15,28 @@ SKILL_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SKILL_ROOT))
 
 from scripts import reminder, weekly_store
+
+
+class FakeMsvcrt:
+    LK_LOCK = 1
+    LK_UNLCK = 2
+
+    def __init__(self):
+        self.calls = []
+
+    def locking(self, fileno, mode, nbytes):
+        self.calls.append((mode, nbytes))
+
+
+def import_reminder_without_fcntl(fake_msvcrt):
+    spec = importlib.util.spec_from_file_location(
+        "reminder_no_fcntl",
+        SKILL_ROOT / "scripts" / "reminder.py",
+    )
+    module = importlib.util.module_from_spec(spec)
+    with mock.patch.dict(sys.modules, {"fcntl": None, "msvcrt": fake_msvcrt}):
+        spec.loader.exec_module(module)
+    return module
 
 
 class ReminderTests(unittest.TestCase):
@@ -61,6 +84,18 @@ class ReminderTests(unittest.TestCase):
 
         self.assertFalse(
             reminder.should_remind(self.root, now=datetime(2026, 7, 1, 17, 0))
+        )
+
+    def test_reminder_lock_falls_back_to_windows_msvcrt_when_fcntl_is_unavailable(self):
+        fake_msvcrt = FakeMsvcrt()
+        module = import_reminder_without_fcntl(fake_msvcrt)
+
+        with module._exclusive_lock(self.root):
+            pass
+
+        self.assertEqual(
+            fake_msvcrt.calls,
+            [(fake_msvcrt.LK_LOCK, 1), (fake_msvcrt.LK_UNLCK, 1)],
         )
 
     def test_before_17_does_not_create_state_directory(self):

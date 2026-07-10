@@ -47,6 +47,7 @@ Use these literals in shell examples:
 ROOT=$HOME/Documents/周报
 SKILL_DIR=${CODEX_HOME:-$HOME/.codex}/skills/weekly-work-skill
 SKILL_CREATOR=${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-creator/scripts
+PYTHON="${PYTHON:-python}"
 ```
 
 ## collect
@@ -70,8 +71,9 @@ Discovery:
 ```bash
 ROOT=$HOME/Documents/周报
 SKILL_DIR=${CODEX_HOME:-$HOME/.codex}/skills/weekly-work-skill
+PYTHON="${PYTHON:-python}"
 TODAY="$(date +%F)"
-python3 "$SKILL_DIR/scripts/project_history.py" discover \
+"$PYTHON" "$SKILL_DIR/scripts/project_history.py" discover \
   --cwd "$PWD" \
   --range "$USER_DATE_OR_RANGE" \
   --today "$TODAY" \
@@ -96,10 +98,11 @@ Thread reading and extraction:
 ```bash
 ROOT=$HOME/Documents/周报
 SKILL_DIR=${CODEX_HOME:-$HOME/.codex}/skills/weekly-work-skill
+PYTHON="${PYTHON:-python}"
 THREAD_ID="thread-id-from-discover"
 START_DATE="2026-07-01"
 END_DATE="2026-07-05"
-python3 "$SKILL_DIR/scripts/project_history.py" export \
+"$PYTHON" "$SKILL_DIR/scripts/project_history.py" export \
   --thread-id "$THREAD_ID" \
   --start "$START_DATE" \
   --end "$END_DATE" \
@@ -137,8 +140,9 @@ Example:
 ```bash
 ROOT=$HOME/Documents/周报
 SKILL_DIR=${CODEX_HOME:-$HOME/.codex}/skills/weekly-work-skill
+PYTHON="${PYTHON:-python}"
 TODAY="$(date +%F)"
-python3 "$SKILL_DIR/scripts/weekly_store.py" add --root "$ROOT" --today "$TODAY" <<'JSON'
+"$PYTHON" "$SKILL_DIR/scripts/weekly_store.py" add --root "$ROOT" --today "$TODAY" <<'JSON'
 {"date":"2026-07-01","project":"codex","ai_source":"Codex","daily_work":["Implemented storage"],"literature":[],"research_progress":[],"research_outputs":[],"unresolved":[]}
 JSON
 ```
@@ -204,12 +208,13 @@ Correct mode:
 ```bash
 ROOT=$HOME/Documents/周报
 SKILL_DIR=${CODEX_HOME:-$HOME/.codex}/skills/weekly-work-skill
+PYTHON="${PYTHON:-python}"
 TARGET_DATE="2026-06-30"
 TODAY="$TARGET_DATE"
 RECORD_ID="0123456789abcdef"
-python3 "$SKILL_DIR/scripts/weekly_store.py" list --root "$ROOT" --week-of "$TARGET_DATE"
+"$PYTHON" "$SKILL_DIR/scripts/weekly_store.py" list --root "$ROOT" --week-of "$TARGET_DATE"
 # Codex substitutes the confirmed illustrative value after the list result, then mutates only the chosen record.
-python3 "$SKILL_DIR/scripts/weekly_store.py" replace --root "$ROOT" --today "$TODAY" "$RECORD_ID" <<'JSON'
+"$PYTHON" "$SKILL_DIR/scripts/weekly_store.py" replace --root "$ROOT" --today "$TODAY" "$RECORD_ID" <<'JSON'
 {"date":"2026-06-30","project":"alpha","ai_source":"codex","daily_work":["Implemented storage"],"literature":[],"research_progress":[],"research_outputs":[],"unresolved":[]}
 JSON
 ```
@@ -231,11 +236,12 @@ Delete mode:
 ```bash
 ROOT=$HOME/Documents/周报
 SKILL_DIR=${CODEX_HOME:-$HOME/.codex}/skills/weekly-work-skill
+PYTHON="${PYTHON:-python}"
 TARGET_DATE="2026-06-30"
 RECORD_ID="0123456789abcdef"
-python3 "$SKILL_DIR/scripts/weekly_store.py" list --root "$ROOT" --week-of "$TARGET_DATE"
+"$PYTHON" "$SKILL_DIR/scripts/weekly_store.py" list --root "$ROOT" --week-of "$TARGET_DATE"
 # Codex substitutes the confirmed illustrative value after the list result, then deletes only the chosen record.
-python3 "$SKILL_DIR/scripts/weekly_store.py" delete --root "$ROOT" --week-of "$TARGET_DATE" "$RECORD_ID"
+"$PYTHON" "$SKILL_DIR/scripts/weekly_store.py" delete --root "$ROOT" --week-of "$TARGET_DATE" "$RECORD_ID"
 ```
 
 Deletion should only touch the requested record; do not rewrite unrelated entries.
@@ -262,7 +268,8 @@ The prompt cleans up素材 for a weekly report; it must not invent missing facts
 Run the skill contract tests directly:
 
 ```bash
-python3 "$SKILL_DIR/tests/test_skill_contract.py"
+PYTHON="${PYTHON:-python}"
+"$PYTHON" "$SKILL_DIR/tests/test_skill_contract.py"
 ```
 
 Run the broader test suite and quick validation after the contract passes.

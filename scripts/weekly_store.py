@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import argparse
 from contextlib import contextmanager
-import fcntl
 import hashlib
 import json
 import os
@@ -12,6 +11,16 @@ from pathlib import Path
 import sys
 import tempfile
 from typing import List, Optional, Tuple
+
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
+
+try:
+    import msvcrt
+except ImportError:
+    msvcrt = None
 
 
 SCHEMA_VERSION = 1
@@ -124,11 +133,37 @@ def _storage_lock(root: Path):
     data_directory.mkdir(parents=True, exist_ok=True)
     lock_path = data_directory / ".weekly-store.lock"
     with lock_path.open("a+b") as lock_file:
-        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        mechanism = _lock_file_exclusive(lock_file)
         try:
             yield
         finally:
-            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+            _unlock_file_exclusive(lock_file, mechanism)
+
+
+def _lock_file_exclusive(lock_file):
+    if fcntl is not None:
+        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        return "fcntl"
+    if msvcrt is not None:
+        lock_file.seek(0, os.SEEK_END)
+        if lock_file.tell() == 0:
+            lock_file.write(b"\0")
+            lock_file.flush()
+        lock_file.seek(0)
+        msvcrt.locking(lock_file.fileno(), msvcrt.LK_LOCK, 1)
+        return "msvcrt"
+    raise OSError("no supported file locking module: fcntl or msvcrt")
+
+
+def _unlock_file_exclusive(lock_file, mechanism: str) -> None:
+    if mechanism == "fcntl":
+        fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+        return
+    if mechanism == "msvcrt":
+        lock_file.seek(0)
+        msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+        return
+    raise OSError("unknown file locking mechanism: %s" % mechanism)
 
 
 def _write_bytes_atomic(path: Path, content: bytes) -> None:

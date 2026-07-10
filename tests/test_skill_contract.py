@@ -1,4 +1,5 @@
 import subprocess
+import sys
 import unittest
 from pathlib import Path
 
@@ -98,7 +99,7 @@ def _split_frontmatter(text: str):
 
 def _run_help(*args: str) -> str:
     completed = subprocess.run(
-        ["python3", *args],
+        [sys.executable, *args],
         capture_output=True,
         text=True,
         check=True,
@@ -181,14 +182,14 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn("scripts/report.py", body)
         self.assertIn("references/external-ai-prompt.md", body)
         self.assertIn("quick_validate.py", body)
-        self.assertIn("python3 \"$SKILL_DIR/scripts/weekly_store.py\" list --root \"$ROOT\" --week-of \"$TARGET_DATE\"", body)
+        self.assertIn("\"$PYTHON\" \"$SKILL_DIR/scripts/weekly_store.py\" list --root \"$ROOT\" --week-of \"$TARGET_DATE\"", body)
         self.assertIn('TARGET_DATE="2026-06-30"', body)
         self.assertIn('RECORD_ID="0123456789abcdef"', body)
         self.assertIn(
-            'python3 "$SKILL_DIR/scripts/weekly_store.py" replace --root "$ROOT" --today "$TODAY" "$RECORD_ID"',
+            '"$PYTHON" "$SKILL_DIR/scripts/weekly_store.py" replace --root "$ROOT" --today "$TODAY" "$RECORD_ID"',
             body,
         )
-        self.assertIn("python3 \"$SKILL_DIR/scripts/weekly_store.py\" delete --root \"$ROOT\" --week-of \"$TARGET_DATE\" \"$RECORD_ID\"", body)
+        self.assertIn("\"$PYTHON\" \"$SKILL_DIR/scripts/weekly_store.py\" delete --root \"$ROOT\" --week-of \"$TARGET_DATE\" \"$RECORD_ID\"", body)
         self.assertNotIn('TARGET_DATE="$(date +%F)"', body)
         self.assertIn("list relevant week first", body)
         self.assertIn("If multiple records match, ask and stop", body)
@@ -413,6 +414,17 @@ class SkillContractTests(unittest.TestCase):
         self.assertNotIn("PYTHON = Path(", text)
         self.assertIn("sys.executable", text)
         self.assertIn("[sys.executable, str(REPORT_SCRIPT), *args]", text)
+
+    def test_skill_uses_cross_platform_python_placeholder_and_local_script_package(self):
+        body = _split_frontmatter(_read_text(SKILL_PATH))[1]
+        test_source = _read_text(Path(__file__))
+
+        self.assertIn('PYTHON="${PYTHON:-python}"', body)
+        self.assertNotIn('python3 "$SKILL_DIR', body)
+        self.assertNotIn('python3 "$SKILL_CREATOR', body)
+        self.assertIn("[sys.executable, *args]", test_source)
+        self.assertNotRegex(test_source, r"\[\s*['\"]python3['\"], \*args\]")
+        self.assertTrue((SKILL_ROOT / "scripts" / "__init__.py").exists())
 
     def test_skill_is_directly_runnable_with_unittest_entrypoint(self):
         text = _read_text(Path(__file__))

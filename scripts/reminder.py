@@ -2,13 +2,22 @@
 import argparse
 import json
 import os
-import fcntl
 from datetime import datetime, timezone
 from contextlib import contextmanager
 from pathlib import Path
 import sys
 import tempfile
 from typing import Optional
+
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
+
+try:
+    import msvcrt
+except ImportError:
+    msvcrt = None
 
 
 if __package__:
@@ -46,12 +55,38 @@ def _backup_malformed(path: Path, content: bytes) -> Path:
 def _exclusive_lock(root: Path):
     lock_path = Path(root) / "state" / "reminder.lock"
     lock_path.parent.mkdir(parents=True, exist_ok=True)
-    with lock_path.open("a+") as handle:
-        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+    with lock_path.open("a+b") as handle:
+        mechanism = _lock_file_exclusive(handle)
         try:
             yield
         finally:
-            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+            _unlock_file_exclusive(handle, mechanism)
+
+
+def _lock_file_exclusive(handle):
+    if fcntl is not None:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        return "fcntl"
+    if msvcrt is not None:
+        handle.seek(0, os.SEEK_END)
+        if handle.tell() == 0:
+            handle.write(b"\0")
+            handle.flush()
+        handle.seek(0)
+        msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)
+        return "msvcrt"
+    raise OSError("no supported file locking module: fcntl or msvcrt")
+
+
+def _unlock_file_exclusive(handle, mechanism: str) -> None:
+    if mechanism == "fcntl":
+        fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        return
+    if mechanism == "msvcrt":
+        handle.seek(0)
+        msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+        return
+    raise OSError("unknown file locking mechanism: %s" % mechanism)
 
 
 def _raise_invalid_state(path: Path, content: bytes, reason: str) -> None:
